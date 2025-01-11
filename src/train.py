@@ -1,5 +1,6 @@
 from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
+import random
 
 env = TimeLimit(
     env=HIVPatient(domain_randomization=False), max_episode_steps=200
@@ -12,7 +13,7 @@ env = TimeLimit(
 # ENJOY!
 class ProjectAgent:
     def act(self, observation, use_random=False):
-        return 0
+        return random.randint(0, 3)
 
     def save(self, path):
         pass
@@ -20,5 +21,3 @@ class ProjectAgent:
     def load(self):
         pass
 
-    def test_func(self):
-        print("nothing")
