@@ -1,4 +1,7 @@
 torch>=1.12.0
+tensorflow
+tensorboard
+stable-baselines3
 gymnasium>=0.29.1
 numpy >=1.21.0
 scikit-learn>=1.4.0
