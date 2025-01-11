@@ -19,3 +19,6 @@ class ProjectAgent:
 
     def load(self):
         pass
+
+    def test_func(self):
+        print("nothing")
