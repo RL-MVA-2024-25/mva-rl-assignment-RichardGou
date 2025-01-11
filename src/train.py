@@ -32,7 +32,7 @@ class ProjectAgent:
         # Define evaluation environment
         eval_env = DummyVecEnv([make_env])
         
-        # Load VecNormalize stats if available
+        # Load VecNormalize 
         if os.path.exists("./vec_normalize.pkl"):
             eval_env = VecNormalize.load("./vec_normalize.pkl", eval_env)
             eval_env.training = False
@@ -42,7 +42,7 @@ class ProjectAgent:
             eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True, clip_obs=10.)
             print("Initialized VecNormalize for evaluation.")
 
-        # Create EvalCallback to save the best model
+        # to save the best model
         eval_callback = EvalCallback(
             eval_env,
             best_model_save_path='./logs/',
@@ -53,7 +53,7 @@ class ProjectAgent:
             render=False
         )
 
-        # Create CheckpointCallback to save checkpoints periodically
+        # Create CheckpointCallback 
         checkpoint_callback = CheckpointCallback(
             save_freq=50000,
             save_path='./checkpoints/',
@@ -63,14 +63,14 @@ class ProjectAgent:
         # Combine callbacks
         callback = CallbackList([eval_callback, checkpoint_callback])
 
-        # Train the model with callbacks
+        # Train the model
         self.model.learn(total_timesteps=total_timesteps, callback=callback)
 
         # Save the final model
         self.model.save(self.model_path)
         print(f"Final model saved to {self.model_path}")
 
-        # Save the VecNormalize statistics
+        # Save the VecNormalize envd
         vec_env.save("vec_normalize.pkl")
         print("VecNormalize statistics saved to vec_normalize.pkl")
 
@@ -90,7 +90,7 @@ class ProjectAgent:
         if os.path.exists(self.model_path):
             self.model = PPO.load(self.model_path, env=vec_env)
             if os.path.exists("vec_normalize.pkl"):
-                vec_env.load("vec_normalize.pkl")
+                VecNormalize.load("vec_normalize.pkl", venv=vec_env)
                 print(f"Model loaded from {self.model_path} and VecNormalize stats loaded from vec_normalize.pkl")
             else:
                 print("Model loaded, but VecNormalize stats file vec_normalize.pkl not found.")
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # Initialize agent
     agent = ProjectAgent()
 
-    # Load existing model and normalization stats if available
+    # Load existing model if available And env stats
     agent.load()
 
     # Train the agent
