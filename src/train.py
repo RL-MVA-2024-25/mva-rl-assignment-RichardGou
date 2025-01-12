@@ -15,7 +15,7 @@ from env_hiv import HIVPatient
 # -------------------------------------------------------------------
 # 1) Fonctions de création d'environnements
 # -------------------------------------------------------------------
-def make_env(domain_randomization=False):
+def make_env(domain_randomization=True):
     """
     Crée un environnement HIVPatient.
     Ajustez domain_randomization si vous voulez entraîner sur un patient aléatoire.
@@ -64,9 +64,9 @@ class ProjectAgent:
         # Si aucun env n'est fourni, on le crée nous-mêmes
         if env is None:
             #  8 environnements parallèles
-            vec_env = make_parallel_envs(num_envs=8, domain_randomization=False)
+            vec_env = make_parallel_envs(num_envs=8, domain_randomization=True)
             # On applique la normalisation
-            vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
+            vec_env = VecNormalize(vec_env, norm_obs=False, norm_reward=True, clip_obs=10.0)
         else:
             vec_env = env
 
@@ -93,7 +93,7 @@ class ProjectAgent:
             # Charger ensuite les stats de VecNormalize
             if os.path.exists("vec_normalize.pkl"):
                 # Crée un nouvel env pour y injecter les stats
-                dummy_env = make_parallel_envs(num_envs=8, domain_randomization=False)
+                dummy_env = make_parallel_envs(num_envs=8, domain_randomization=True)
                 dummy_env = VecNormalize.load("vec_normalize.pkl", dummy_env)
                 # Si on veut continuer l'entraînement, on met training=True
                 if training:
@@ -109,8 +109,8 @@ class ProjectAgent:
             else:
                 print("Aucune stats VecNormalize (vec_normalize.pkl) trouvée, utilisation d'un env par défaut.")
                 # On recrée un env "neuf"
-                dummy_env = make_parallel_envs(num_envs=16, domain_randomization=False)
-                dummy_env = VecNormalize(dummy_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
+                dummy_env = make_parallel_envs(num_envs=8, domain_randomization=True)
+                dummy_env = VecNormalize(dummy_env, norm_obs=False, norm_reward=True, clip_obs=10.0)
                 self.model.set_env(dummy_env)
         else:
             print(f"Aucun modèle trouvé à {self.model_path}, on part de zéro.")
@@ -120,14 +120,14 @@ class ProjectAgent:
         Entraîne le modèle PPO pendant 'total_timesteps' itérations.
         """
         # Créer un env dédié à l'évaluation
-        eval_env = DummyVecEnv([lambda: make_env(domain_randomization=False)])
+        eval_env = DummyVecEnv([lambda: make_env(domain_randomization=True)])
         if os.path.exists("vec_normalize.pkl"):
             eval_env = VecNormalize.load("vec_normalize.pkl", eval_env)
             eval_env.training = False
             eval_env.norm_reward = False
             print("Loaded VecNormalize stats pour évaluation.")
         else:
-            eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
+            eval_env = VecNormalize(eval_env, norm_obs=False, norm_reward=True, clip_obs=10.0)
             print("Initialized fresh VecNormalize for evaluation.")
 
         # Callbacks : sauvegarde du meilleur modèle + checkpoints périodiques
@@ -194,7 +194,7 @@ def main():
     
     agent = ProjectAgent(model_path="best_model.zip")
     agent.load(training = True)              
-    agent.train(5000000)      
+    agent.train(1000000)      
 
 
 
