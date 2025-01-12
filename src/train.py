@@ -192,7 +192,7 @@ def main():
     
     agent = ProjectAgent(model_path="best_model.zip")
     agent.load(training = True)              
-    agent.train(1000000)      
+    agent.train(5000000)      
 
 
 
