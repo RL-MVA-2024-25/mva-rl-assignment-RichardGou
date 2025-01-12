@@ -79,6 +79,7 @@ class ProjectAgent:
             policy_kwargs=policy_kwargs,
             learning_rate=linear_schedule(3e-3, 1e-3),
         )
+        self.vec_env = vec_env
 
     def load(self,training = False):
         """
@@ -167,6 +168,7 @@ class ProjectAgent:
         """
         if use_random:
             return random.randint(0, 3)
+        observation = self.vec_env.normalize_obs(observation)
         # Action déterministe depuis le modèle
         action, _states = self.model.predict(observation, deterministic=True)
         return action
