@@ -105,4 +105,4 @@ if __name__ == "__main__":
     agent.load()
 
     # Train the agent
-    agent.train(total_timesteps=1000000)
+    agent.train(total_timesteps=10000000)
