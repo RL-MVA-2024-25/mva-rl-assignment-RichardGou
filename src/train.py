@@ -39,6 +39,13 @@ policy_kwargs = dict(
                    vf=[256, 256])]
 )
 
+def linear_schedule(initial_lr: float, final_lr: float):
+
+    def schedule(progress_remaining: float) -> float:
+
+        return final_lr + (initial_lr - final_lr) * progress_remaining
+    return schedule
+
 
 # -------------------------------------------------------------------
 # 3) Classe ProjectAgent
@@ -69,7 +76,8 @@ class ProjectAgent:
             env=vec_env,
             verbose=1,
             tensorboard_log="./ppo_hiv_tensorboard/",
-            policy_kwargs=policy_kwargs
+            policy_kwargs=policy_kwargs,
+            learning_rate=linear_schedule(3e-3, 1e-3),
         )
 
     def load(self,training = False):
@@ -100,7 +108,7 @@ class ProjectAgent:
             else:
                 print("Aucune stats VecNormalize (vec_normalize.pkl) trouvée, utilisation d'un env par défaut.")
                 # On recrée un env "neuf"
-                dummy_env = make_parallel_envs(num_envs=8, domain_randomization=False)
+                dummy_env = make_parallel_envs(num_envs=16, domain_randomization=False)
                 dummy_env = VecNormalize(dummy_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
                 self.model.set_env(dummy_env)
         else:
@@ -160,7 +168,6 @@ class ProjectAgent:
         if use_random:
             return random.randint(0, 3)
         # Action déterministe depuis le modèle
-        observation = self.vec_env.normalize_obs(observation)
         action, _states = self.model.predict(observation, deterministic=True)
         return action
 
@@ -185,7 +192,7 @@ def main():
     
     agent = ProjectAgent(model_path="best_model.zip")
     agent.load(training = True)              
-    agent.train(10000000)      
+    agent.train(1000000)      
 
 
 
