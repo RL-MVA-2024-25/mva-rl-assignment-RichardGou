@@ -10,7 +10,7 @@ from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback, CallbackList
 
-from env_hiv import HIVPatient  # Assurez-vous que ce fichier est au bon endroit
+from env_hiv import HIVPatient  
 
 # -------------------------------------------------------------------
 # 1) Fonctions de création d'environnements
@@ -35,7 +35,8 @@ def make_parallel_envs(num_envs=8, domain_randomization=False):
 # 2) Hyperparamètres de la politique
 # -------------------------------------------------------------------
 policy_kwargs = dict(
-    net_arch=[256, 256]  # Par exemple [128,128], [256,256,256], etc.
+    net_arch=[dict(pi=[128, 128],
+                   vf=[256, 256])]
 )
 
 
@@ -55,9 +56,9 @@ class ProjectAgent:
 
         # Si aucun env n'est fourni, on le crée nous-mêmes
         if env is None:
-            # Ex: on crée 8 environnements parallèles
+            #  8 environnements parallèles
             vec_env = make_parallel_envs(num_envs=8, domain_randomization=False)
-            # On applique la normalisation (observations + rewards)
+            # On applique la normalisation
             vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
         else:
             vec_env = env
@@ -71,7 +72,7 @@ class ProjectAgent:
             policy_kwargs=policy_kwargs
         )
 
-    def load(self):
+    def load(self,training = False):
         """
         Charge le modèle (fichier .zip) et la configuration VecNormalize (fichier .pkl).
         """
@@ -86,8 +87,12 @@ class ProjectAgent:
                 dummy_env = make_parallel_envs(num_envs=8, domain_randomization=False)
                 dummy_env = VecNormalize.load("vec_normalize.pkl", dummy_env)
                 # Si on veut continuer l'entraînement, on met training=True
-                dummy_env.training = True
-                dummy_env.norm_reward = True
+                if training:
+                    dummy_env.training = True
+                    dummy_env.norm_reward = True
+                else:
+                    dummy_env.training = False
+                    dummy_env.norm_reward = False
 
                 # Associer cet env au modèle
                 self.model.set_env(dummy_env)
@@ -101,7 +106,7 @@ class ProjectAgent:
         else:
             print(f"Aucun modèle trouvé à {self.model_path}, on part de zéro.")
 
-    def train(self, total_timesteps=1000000):
+    def train(self, total_timesteps=500000):
         """
         Entraîne le modèle PPO pendant 'total_timesteps' itérations.
         """
@@ -155,6 +160,7 @@ class ProjectAgent:
         if use_random:
             return random.randint(0, 3)
         # Action déterministe depuis le modèle
+        observation = self.vec_env.normalize_obs(observation)
         action, _states = self.model.predict(observation, deterministic=True)
         return action
 
@@ -178,10 +184,10 @@ def main():
     """
     
     agent = ProjectAgent(model_path="best_model.zip")
-    agent.load()              
-    agent.train(1000000)      
+    agent.load(training = True)              
+    agent.train(10000000)      
 
-    # ...
+
 
 if __name__ == "__main__":
     main()
