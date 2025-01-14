@@ -1,16 +1,15 @@
 import os
 import random
 from gymnasium.wrappers import TimeLimit
-
 from stable_baselines3 import PPO
 from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
-
+from stable_baselines3.common.results_plotter import load_results, ts2xy
+from stable_baselines3.common.callbacks import BaseCallback
+import numpy as np
 from env_hiv import HIVPatient  
 
-# -------------------------------------------------------------------
-# 1) Fonction de création d'environnements
-# -------------------------------------------------------------------
+#Environnement
 def make_env(domain_randomization=True):
     def _init():
         env = HIVPatient(domain_randomization=domain_randomization)
@@ -18,23 +17,18 @@ def make_env(domain_randomization=True):
         return env
     return _init
 
-# -------------------------------------------------------------------
-# 2) Hyperparamètres de la politique
-# -------------------------------------------------------------------
+#Hyperparamètres
 policy_kwargs = dict(
-    net_arch=[dict(pi=[128, 128],
-                   vf=[256, 256])]
+    net_arch=[dict(pi=[256, 256],
+                   vf=[512, 512])]
 )
-domain_randomization = False
+domain_randomization = True
 
 def linear_schedule(initial_lr: float, final_lr: float):
     def schedule(progress_remaining: float) -> float:
         return final_lr + (initial_lr - final_lr) * progress_remaining
     return schedule
 
-# -------------------------------------------------------------------
-# 3) Classe ProjectAgent
-# -------------------------------------------------------------------
 class ProjectAgent:
     def __init__(self):
         # Création de l'environnement vectorisé
@@ -97,7 +91,7 @@ class ProjectAgent:
 def main():
     agent = ProjectAgent()
    
-    agent.train(total_timesteps=500000)
+    agent.train(total_timesteps=2000000)
 
     agent.close()
 
