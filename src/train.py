@@ -77,7 +77,7 @@ class ProjectAgent:
         if use_random:
             return random.randint(0, 3)
         
-        observation = self.vec_env.norm_obs(observation)
+        observation = self.vec_env.normalize_obs(observation)
         action, _states = self.model.predict(observation, deterministic=True)
         return action
     
