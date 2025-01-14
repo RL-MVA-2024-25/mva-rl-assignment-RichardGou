@@ -7,17 +7,18 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.callbacks import BaseCallback
 import numpy as np
+from stable_baselines3.common.monitor import Monitor
 from env_hiv import HIVPatient  
 
-#Environnement
-def make_env(domain_randomization=True):
+def make_env(domain_randomization=True, log_dir=None):
     def _init():
         env = HIVPatient(domain_randomization=domain_randomization)
         env = TimeLimit(env, max_episode_steps=200)
+        if log_dir is not None:
+            env = Monitor(env, filename=os.path.join(log_dir, f"env_{random.randint(0, 10000)}.log"))
         return env
     return _init
 
-#Hyperparamètres
 policy_kwargs = dict(
     net_arch=[dict(pi=[256, 256],
                    vf=[512, 512])]
@@ -29,13 +30,49 @@ def linear_schedule(initial_lr: float, final_lr: float):
         return final_lr + (initial_lr - final_lr) * progress_remaining
     return schedule
 
-class ProjectAgent:
-    def __init__(self):
-        # Création de l'environnement vectorisé
-        self.vec_env = SubprocVecEnv([make_env(domain_randomization) for _ in range(8)])  # 8 environnements parallèles
-        self.vec_env = VecNormalize(self.vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0)  # Normalisation
+class SaveOnBestTrainingRewardCallback(BaseCallback):
+    def __init__(self, check_freq, log_dir, verbose=1):
+        super().__init__(verbose)
+        self.check_freq = check_freq
+        self.log_dir = log_dir
+        self.save_path = os.path.join(log_dir, "best_model")
+        self.save_path_env = os.path.join(log_dir, "vec_normalize.pkl")
+        self.best_mean_reward = -np.inf
 
-        # Instanciation du PPO
+    def _init_callback(self) -> None:
+        if self.save_path is not None:
+            os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.check_freq == 0:
+            try:
+                x, y = ts2xy(load_results(self.log_dir), "timesteps")
+            except FileNotFoundError:
+                return True
+            if len(x) > 0:
+                mean_reward = np.mean(y[-100:])
+                if self.verbose > 0:
+                    print(f"Num timesteps: {self.num_timesteps}")
+                    print(f"Best mean reward: {self.best_mean_reward:.2f} - Last mean reward per episode: {mean_reward:.2f}")
+                if mean_reward > self.best_mean_reward:
+                    self.best_mean_reward = mean_reward
+                    if self.verbose > 0:
+                        print(f"Saving new best model at {x[-1]} timesteps")
+                        print(f"Saving new best model to {self.save_path}.zip")
+                    self.model.save(self.save_path)
+                    vec_env = self.model.get_vec_normalize_env()
+                    if vec_env is not None:
+                        vec_env.save(self.save_path_env)
+                        if self.verbose > 0:
+                            print(f"Environnement normalisé sauvegardé dans : {self.save_path_env}")
+        return True
+
+class ProjectAgent:
+    def __init__(self, log_dir="./logs/"):
+        self.log_dir = log_dir
+        os.makedirs(self.log_dir, exist_ok=True)
+        self.vec_env = SubprocVecEnv([make_env(domain_randomization, log_dir=self.log_dir) for _ in range(8)])
+        self.vec_env = VecNormalize(self.vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
         self.model = PPO(
             policy=MlpPolicy,
             env=self.vec_env,
@@ -62,10 +99,8 @@ class ProjectAgent:
             print(f"Fichier environnement {env_path} non trouvé.")
     
     def train(self, total_timesteps=500000):
-        self.model.learn(total_timesteps=total_timesteps)
-
-        # Sauvegarde finale du modèle et de l'environnement
-        self.save()
+        callback = SaveOnBestTrainingRewardCallback(check_freq=10000, log_dir=self.log_dir, verbose=1)
+        self.model.learn(total_timesteps=total_timesteps, callback=callback)
     
     def act(self, observation, use_random=False):
         if use_random:
@@ -76,23 +111,18 @@ class ProjectAgent:
         return action
     
     def save(self, path_model="best_model.zip", path_env="vec_normalize.pkl"):
-
         self.model.save(path_model)
         print(f"Modèle PPO sauvegardé dans : {path_model}")
-
         self.vec_env.save(path_env)
         print(f"Environnement normalisé sauvegardé dans : {path_env}")
     
     def close(self):
-
         self.vec_env.close()
         print("Environnement fermé.")
 
 def main():
     agent = ProjectAgent()
-   
-    agent.train(total_timesteps=2000000)
-
+    agent.train(total_timesteps=5000000)
     agent.close()
 
 if __name__ == "__main__":
